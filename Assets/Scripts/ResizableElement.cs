@@ -8,33 +8,28 @@ public class ResizableElement : MonoBehaviour
     [SerializeField] private Vector3 _windowSizeMin = Vector2.zero;
     [SerializeField] private CursorHandler _cursorHandler;
 
+    private Vector3 _previousPos;
+    private Vector3 _deltaDifference;
     private bool _isResizing;
     private float _xCoefficient;
     private float _yCoefficient;
 
-    private Vector3 _previousPos;
-
     private void Update()
     {
-        HandleResizing();
-    }
-
-    private void HandleResizing()
-    {
-        UIUtils.GetCursorPosition(_rect, out Vector3 parentPos, out Vector3 localPos, _isResizing);
+        UIUtils.GetCursorPosition(_rect, out Vector3 parentPos, out Vector3 localPos);
 
         if (_isResizing)
-        {
             ResizeRect(parentPos);
-        }
-        // Allow resizing when the cursor is within the rect's borders
-        else if (IsWithinBorders(localPos))
+        else if (IsWithinRect(localPos) && IsWithinBorders(localPos))
         {
             UpdateCoefficients(localPos);
+            SendCursorUpdate();
 
             if (Input.GetMouseButtonDown(0))
                 BeginResizing();
         }
+        else
+            _cursorHandler.ResetCursor();
 
         if (Input.GetMouseButtonUp(0))
             StopResizing();
@@ -44,7 +39,7 @@ public class ResizableElement : MonoBehaviour
 
     public void ResizeRect(Vector3 parentPos)
     {
-        Vector2 delta = parentPos - _previousPos;
+        Vector2 delta = parentPos - _previousPos - _deltaDifference;
 
         delta.x = _xCoefficient * Mathf.Max(
             _windowSizeMin.x - _rect.rect.width, _xCoefficient * delta.x);
@@ -52,7 +47,6 @@ public class ResizableElement : MonoBehaviour
         delta.y = _yCoefficient * Mathf.Max(
             _windowSizeMin.y - _rect.rect.height, _yCoefficient * delta.y);
 
-        // Scale x axis
         if (_xCoefficient > 0)
         {
             _rect.sizeDelta += new Vector2(delta.x, 0);
@@ -64,7 +58,6 @@ public class ResizableElement : MonoBehaviour
             _rect.anchoredPosition += new Vector2(delta.x * (1 - _rect.pivot.x), 0);
         }
 
-        // Scale y axis
         if (_yCoefficient > 0)
         {
             _rect.sizeDelta += new Vector2(0, delta.y);
@@ -77,7 +70,6 @@ public class ResizableElement : MonoBehaviour
         }
     }
 
-    // Gets a value to multiply the delta by 
     private float GetResizeCoefficient(float axisPos, float size, float borderSize)
     {
         if (axisPos < borderSize)
@@ -93,16 +85,28 @@ public class ResizableElement : MonoBehaviour
         _yCoefficient = GetResizeCoefficient(localPos.y, _rect.rect.height, _borderSize);
     }
 
+    private void SendCursorUpdate()
+    {
+        CursorType newCursorType = CursorType.Pointer;
+
+        if (_xCoefficient != 0)
+            newCursorType = CursorType.HorizontalResize;
+        else if (_yCoefficient != 0)
+            newCursorType = CursorType.VerticalResize;
+
+        _cursorHandler.SetCursor(newCursorType);
+    }
+
     private void BeginResizing()
     {
-        CursorHandler.SetCursorType(CursorType.HorizontalResize);
+        _cursorHandler.SetCursorType(CursorType.HorizontalResize);
         _isResizing = true;
     }
 
     private void StopResizing()
     {
-        CursorHandler.SetCursorType(CursorType.Pointer);
         _isResizing = false;
+        _cursorHandler.ResetCursor();
     }
 
     private bool IsWithinRect(Vector3 localPos)
