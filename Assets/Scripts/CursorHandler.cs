@@ -43,7 +43,7 @@ public class CursorHandler : MonoBehaviour
         return _currentCursorType switch
         {
             CursorType.VerticalResize => _verticalCursor,
-            CursorType.HorizontalResize => _verticalCursor,
+            CursorType.HorizontalResize => _horizontalCursor,
             CursorType.Pointer => _pointerCursor,
             CursorType.TopLeftResize => _verticalCursor,
             CursorType.TopRightResize => _verticalCursor,
