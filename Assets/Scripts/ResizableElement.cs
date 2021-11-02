@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(RectTransform))]
 public class ResizableElement : MonoBehaviour
 {
     [SerializeField] private RectTransform _rect;
@@ -17,8 +18,11 @@ public class ResizableElement : MonoBehaviour
         Vector2 delta = parentPos - _previousPos - _deltaDifference;
         Vector2 startingDelta = delta;
 
-        delta.x = _xCoefficient * Mathf.Max(_windowSizeMin.x - _rect.rect.width, _xCoefficient * delta.x);
-        delta.y = _yCoefficient * Mathf.Max(_windowSizeMin.y - _rect.rect.height, _yCoefficient * delta.y);
+        delta.x = _xCoefficient * Mathf.Max(
+            _windowSizeMin.x - _rect.rect.width, _xCoefficient * delta.x);
+
+        delta.y = _yCoefficient * Mathf.Max(
+            _windowSizeMin.y - _rect.rect.height, _yCoefficient * delta.y);
 
         _deltaDifference = delta - startingDelta;
 
@@ -32,6 +36,7 @@ public class ResizableElement : MonoBehaviour
             _rect.sizeDelta -= new Vector2(delta.x, 0);
             _rect.anchoredPosition += new Vector2(delta.x * (1 - _rect.pivot.x), 0);
         }
+
         if (_yCoefficient > 0)
         {
             _rect.sizeDelta += new Vector2(0, delta.y);
@@ -44,11 +49,11 @@ public class ResizableElement : MonoBehaviour
         }
     }
 
-    private float GetResizeCoefficient(float position, float size, float borderSize)
+    private float GetResizeCoefficient(float axisPos, float size, float borderSize)
     {
-        if (position < borderSize)
+        if (axisPos > -borderSize && axisPos < borderSize)
             return -1;
-        if (position > size - borderSize)
+        if (axisPos < size + borderSize && axisPos > size - borderSize)
             return 1;
         return 0;
     }
@@ -62,8 +67,6 @@ public class ResizableElement : MonoBehaviour
     private void Update()
     {
         UIUtils.GetCursorPosition(_rect, out Vector3 parentPos, out Vector3 localPos);
-
-        bool isInside = localPos.x >= 0 && localPos.y >= 0 && localPos.x <= _rect.rect.width && localPos.y <= _rect.rect.height;
 
         if (!_isResizing)
         {
