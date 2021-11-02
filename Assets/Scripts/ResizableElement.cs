@@ -6,17 +6,45 @@ public class ResizableElement : MonoBehaviour
     [SerializeField] private RectTransform _rect;
     [SerializeField] private float _borderSize = 16;
     [SerializeField] private Vector3 _windowSizeMin = Vector2.zero;
+    [SerializeField] private CursorHandler _cursorHandler;
 
-    private Vector3 _previousPos;
-    private Vector3 _deltaDifference;
     private bool _isResizing;
     private float _xCoefficient;
     private float _yCoefficient;
 
-    public void Resize(Vector3 parentPos)
+    private Vector3 _previousPos;
+
+    private void Update()
     {
-        Vector2 delta = parentPos - _previousPos - _deltaDifference;
-        Vector2 startingDelta = delta;
+        HandleResizing();
+    }
+
+    private void HandleResizing()
+    {
+        UIUtils.GetCursorPosition(_rect, out Vector3 parentPos, out Vector3 localPos, _isResizing);
+
+        if (_isResizing)
+        {
+            ResizeRect(parentPos);
+        }
+        // Allow resizing when the cursor is within the rect's borders
+        else if (IsWithinBorders(localPos))
+        {
+            UpdateCoefficients(localPos);
+
+            if (Input.GetMouseButtonDown(0))
+                BeginResizing();
+        }
+
+        if (Input.GetMouseButtonUp(0))
+            StopResizing();
+
+        _previousPos = parentPos;
+    }
+
+    public void ResizeRect(Vector3 parentPos)
+    {
+        Vector2 delta = parentPos - _previousPos;
 
         delta.x = _xCoefficient * Mathf.Max(
             _windowSizeMin.x - _rect.rect.width, _xCoefficient * delta.x);
@@ -24,8 +52,7 @@ public class ResizableElement : MonoBehaviour
         delta.y = _yCoefficient * Mathf.Max(
             _windowSizeMin.y - _rect.rect.height, _yCoefficient * delta.y);
 
-        _deltaDifference = delta - startingDelta;
-
+        // Scale x axis
         if (_xCoefficient > 0)
         {
             _rect.sizeDelta += new Vector2(delta.x, 0);
@@ -37,6 +64,7 @@ public class ResizableElement : MonoBehaviour
             _rect.anchoredPosition += new Vector2(delta.x * (1 - _rect.pivot.x), 0);
         }
 
+        // Scale y axis
         if (_yCoefficient > 0)
         {
             _rect.sizeDelta += new Vector2(0, delta.y);
@@ -49,11 +77,12 @@ public class ResizableElement : MonoBehaviour
         }
     }
 
+    // Gets a value to multiply the delta by 
     private float GetResizeCoefficient(float axisPos, float size, float borderSize)
     {
-        if (axisPos > -borderSize && axisPos < borderSize)
+        if (axisPos < borderSize)
             return -1;
-        if (axisPos < size + borderSize && axisPos > size - borderSize)
+        if (axisPos > size - borderSize)
             return 1;
         return 0;
     }
@@ -64,30 +93,31 @@ public class ResizableElement : MonoBehaviour
         _yCoefficient = GetResizeCoefficient(localPos.y, _rect.rect.height, _borderSize);
     }
 
-    private void Update()
+    private void BeginResizing()
     {
-        UIUtils.GetCursorPosition(_rect, out Vector3 parentPos, out Vector3 localPos);
+        CursorHandler.SetCursorType(CursorType.HorizontalResize);
+        _isResizing = true;
+    }
 
-        if (!_isResizing)
-        {
-            UpdateCoefficients(localPos);
-        }
-        else
-        {
-            Resize(parentPos);
-        }
+    private void StopResizing()
+    {
+        CursorHandler.SetCursorType(CursorType.Pointer);
+        _isResizing = false;
+    }
 
-        if (Input.GetMouseButtonDown(0))
-        {
-            _isResizing = true;
-        }
+    private bool IsWithinRect(Vector3 localPos)
+    {
+        return localPos.x >= 0
+            && localPos.y >= 0
+            && localPos.x <= _rect.rect.width
+            && localPos.y <= _rect.rect.height;
+    }
 
-        if (Input.GetMouseButtonUp(0))
-        {
-            _isResizing = false;
-            _deltaDifference = Vector2.zero;
-        }
-
-        _previousPos = parentPos;
+    private bool IsWithinBorders(Vector3 localPos)
+    {
+        return localPos.x < _borderSize
+            || localPos.y < _borderSize
+            || localPos.x > _rect.rect.width - _borderSize
+            || localPos.y > _rect.rect.height - _borderSize;
     }
 }
